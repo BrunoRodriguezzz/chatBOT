@@ -17,7 +17,7 @@
   "scripts": {
     "test": "vitest run",
     "bot": "node index.js",
-    "prepare": "husky install"
+    "prepare": "node -e \"process.exit(process.env.CI ? 0 : 1)\" || husky install"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
