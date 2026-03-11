@@ -15,7 +15,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "test"
+    "test": "vitest run",
+    "bot": "node index.js",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -24,6 +26,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.0.2"
+    "eslint": "^10.0.2",
+    "vitest": "^4.0.18",
+    "husky": "^8.0.0"
   }
 }
