@@ -1,6 +1,5 @@
-/**
- * Repositorio en memoria para la estructura jerárquica de los datos.
- */
+import { Jerarquia } from "../entities/Jerarquia.js";
+
 class JerarquiaRepository {
   constructor() {
     this.jerarquia = {};
@@ -10,18 +9,11 @@ class JerarquiaRepository {
     if (!newJerarquia || typeof newJerarquia !== "object") return;
 
     for (const [id, value] of Object.entries(newJerarquia)) {
+      if (!(value instanceof Jerarquia)) continue;
       if (this.jerarquia[id]) {
-        const uniqueHijos = new Set([
-          ...this.jerarquia[id].ids_chunks_hijos,
-          ...(value.ids_chunks_hijos || []),
-        ]);
-        this.jerarquia[id] = {
-          ...this.jerarquia[id],
-          ...value,
-          ids_chunks_hijos: Array.from(uniqueHijos),
-        };
+        this.jerarquia[id].merge(value);
       } else {
-        this.jerarquia[id] = { ...value };
+        this.jerarquia[id] = value;
       }
     }
   }

@@ -1,21 +1,9 @@
 import fs from "fs/promises";
-import crypto from "crypto";
 import path from "path";
+import { Chunk } from "../entities/Chunk.js";
+import { Jerarquia } from "../entities/Jerarquia.js";
 import { chunkRepository } from "../repositories/chunkRepository.js";
 import { jerarquiaRepository } from "../repositories/jerarquiaRepository.js";
-
-/**
- * Genera un ID robusto basado en hash del contenido para evitar duplicados.
- * @param {string} text - Contenido a hashear.
- * @returns {string} ID único de 16 caracteres.
- */
-function generateId(text) {
-  return crypto
-    .createHash("sha256")
-    .update(text)
-    .digest("hex")
-    .substring(0, 16);
-}
 
 export async function procesarMarkdown(filePath) {
   try {
@@ -37,7 +25,7 @@ export async function procesarMarkdown(filePath) {
 
     // Mantenemos la ruta de títulos en un array. Posición 0 = H1, Posición 1 = H2, etc.
     let currentPath = ["General", "Inicio"];
-    let currentPadreId = generateId(currentPath.join("-"));
+    let currentPadreId = Jerarquia.generarId(currentPath);
 
     let currentParagraphLines = [];
 
@@ -47,24 +35,17 @@ export async function procesarMarkdown(filePath) {
       const paragraphText = currentParagraphLines.join(" ").trim();
       if (!paragraphText) return;
 
-      const chunkId = generateId(
-        `${currentPadreId}-${paragraphText}-${newChunks.length}`,
+      const chunk = Chunk.create(
+        currentPadreId,
+        paragraphText,
+        newChunks.length,
       );
-
-      newChunks.push({
-        id: chunkId,
-        id_padre: currentPadreId,
-        texto: paragraphText,
-      });
+      newChunks.push(chunk);
 
       if (!newJerarquia[currentPadreId]) {
-        // En lugar de titulo y subtitulo fijos, guardamos la ruta completa
-        newJerarquia[currentPadreId] = {
-          ruta_titulos: [...currentPath],
-          ids_chunks_hijos: [],
-        };
+        newJerarquia[currentPadreId] = Jerarquia.create([...currentPath]);
       }
-      newJerarquia[currentPadreId].ids_chunks_hijos.push(chunkId);
+      newJerarquia[currentPadreId].agregarHijo(chunk.id);
       currentParagraphLines = [];
     };
 
@@ -91,7 +72,7 @@ export async function procesarMarkdown(filePath) {
           currentPath.splice(currentPath.length - 1, 0, "Sin título");
         }
 
-        currentPadreId = generateId(currentPath.join("-"));
+        currentPadreId = Jerarquia.generarId(currentPath);
         continue;
       }
 
@@ -107,7 +88,7 @@ export async function procesarMarkdown(filePath) {
 
     commitParagraph();
 
-    chunkRepository.addMany(newChunks);
+    chunkRepository.addMany(newChunks, newJerarquia);
     jerarquiaRepository.addMany(newJerarquia);
 
     return true;

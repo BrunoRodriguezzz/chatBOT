@@ -5,6 +5,7 @@ import path from "path";
 import { procesarMarkdown } from "../../../../models/utils/mdProcesamiento.js";
 import { chunkRepository } from "../../../../models/repositories/chunkRepository.js";
 import { jerarquiaRepository } from "../../../../models/repositories/jerarquiaRepository.js";
+import { Jerarquia } from "../../../models/entities/Jerarquia.js";
 
 // Mock del archivo Markdown para pruebas
 vi.mock("fs/promises", () => ({
@@ -27,26 +28,6 @@ No compartas este archivo.`,
   },
 }));
 
-// Mock 'natural'
-vi.mock("natural", () => {
-  class TfIdf {
-    constructor() {
-      this.docs = [];
-    }
-    addDocument(doc) {
-      this.docs.push(doc);
-    }
-    tfidfs(query, cb) {
-      const normalizedQuery = query.toLowerCase();
-      for (let i = 0; i < this.docs.length; i++) {
-        const normalizedDoc = this.docs[i].toLowerCase();
-        const score = normalizedDoc.includes(normalizedQuery) ? 1 : 0;
-        cb(i, score);
-      }
-    }
-  }
-  return { default: { TfIdf } };
-});
 
 const mdFile = path.join(process.cwd(), "documentos", "proyecto-alpha.mock.md");
 
@@ -84,7 +65,7 @@ describe("mdProcesamiento", () => {
         id: generateId(
           `${introParentId}-Este es el párrafo introductorio del proyecto. Tiene dos líneas, pero el código las unirá.-0`,
         ),
-        id_padre: introParentId,
+        idJerarquia: introParentId,
         texto:
           "Este es el párrafo introductorio del proyecto. Tiene dos líneas, pero el código las unirá.",
       },
@@ -92,14 +73,14 @@ describe("mdProcesamiento", () => {
         id: generateId(
           `${configParentId}-Aquí explicamos cómo inicializar el sistema.-1`,
         ),
-        id_padre: configParentId,
+        idJerarquia: configParentId,
         texto: "Aquí explicamos cómo inicializar el sistema.",
       },
       {
         id: generateId(
           `${databaseParentId}-Las credenciales están en el archivo .env. No compartas este archivo.-2`,
         ),
-        id_padre: databaseParentId,
+        idJerarquia: databaseParentId,
         texto:
           "Las credenciales están en el archivo .env. No compartas este archivo.",
       },
@@ -107,14 +88,17 @@ describe("mdProcesamiento", () => {
 
     const expectedJerarquia = {
       [introParentId]: {
+        id: Jerarquia.generarId(["Proyecto Alpha"]),
         ruta_titulos: ["Proyecto Alpha"],
         ids_chunks_hijos: [expectedChunks[0].id],
       },
       [configParentId]: {
+        id: Jerarquia.generarId(["Proyecto Alpha", "Configuración"]),
         ruta_titulos: ["Proyecto Alpha", "Configuración"],
         ids_chunks_hijos: [expectedChunks[1].id],
       },
       [databaseParentId]: {
+        id: Jerarquia.generarId(["Proyecto Alpha", "Configuración", "Base de Datos"]),
         ruta_titulos: ["Proyecto Alpha", "Configuración", "Base de Datos"],
         ids_chunks_hijos: [expectedChunks[2].id],
       },
@@ -130,15 +114,16 @@ describe("mdProcesamiento", () => {
 
   it("findMostSimilar devuelve el chunk esperado para la consulta mockeada", async () => {
     await procesarMarkdown(mdFile);
+    await chunkRepository.train();
 
-    const best = chunkRepository.findMostSimilar("credenciales", 0);
+    const best = await chunkRepository.findMostSimilar("credenciales", 0);
 
     expect(best).not.toBeNull();
     if (best) {
       expect(best).toHaveProperty("score");
       expect(best).toHaveProperty("chunk");
-      expect(best.score).toBe(1);
-      expect(best.chunk.id_padre).toBe(
+      expect(best.score).toBeGreaterThan(0);
+      expect(best.chunk.idJerarquia).toBe(
         generateId("Proyecto Alpha-Configuración-Base de Datos"),
       );
       expect(best.chunk.texto).toBe(

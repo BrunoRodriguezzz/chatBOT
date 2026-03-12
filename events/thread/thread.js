@@ -1,5 +1,7 @@
 import fs from "fs";
 import { Events } from "discord.js";
+import { chunkRepository } from "../../models/repositories/chunkRepository.js";
+import { generarRespuestaChunk } from "../../models/utils/botMensajes.js";
 
 const roles = JSON.parse(
   await fs.promises.readFile(
@@ -18,9 +20,18 @@ export default {
       if (!starterMessage) return;
 
       const contenido = starterMessage.content;
-        
-      // Enviamos el mensaje de prueba al hilo
-      await thread.send(`Gracias por tu mensaje: ${contenido}`);
+
+      // resultado.chunk contiene el chunk más similar, resultado.score el puntaje
+      const resultado = await chunkRepository.findMostSimilar(contenido);
+      if (!resultado) {
+        console.log(
+          `No se encontró un tema relacionado para el hilo: ${thread.name}`,
+        );
+        return;
+      }
+
+      const respuesta = generarRespuestaChunk(resultado.chunk.id);
+      starterMessage.reply(respuesta);
     } catch (error) {
       console.error("Error al procesar el nuevo hilo:", error);
     }

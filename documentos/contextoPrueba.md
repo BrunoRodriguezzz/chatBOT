@@ -40,7 +40,7 @@ Sistemas operativos
 
 ### **Interrupción**
 
-Son señales que indican al CPU que hay un evento que requieren de atención. Pueden ser enmascarables (ignorables).
+Las interrupciones son señales que indican al CPU que hay un evento que requieren de atención. Pueden ser enmascarables (ignorables).
 
 - Interrupciones sincrónicas: Excepciones, errores que se dan **en ejecución**.
 - Interrupciones asíncronas: Dispositivo externo a la CPU
