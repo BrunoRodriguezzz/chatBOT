@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 import { procesarMarkdown } from "./mdProcesamiento.js";
-import { chunkRepository } from "../repositories/chunkRepository.js";
+import { jerarquiaRepository } from "../repositories/jerarquiaRepository.js";
 
 /**
  * Lee todos los archivos .md de un directorio y los ingesta.
@@ -19,7 +19,7 @@ export async function cargarDocumentos(dirPath) {
     }
     
     console.log("[CargarDocumentos] Entrenando modelo NLP...");
-    await chunkRepository.train();
+    await jerarquiaRepository.train();
     console.log("[CargarDocumentos] Modelo NLP entrenado.");
   } catch (error) {
     console.error(`[CargarDocumentos] Error al procesar documentos en ${dirPath}:`, error.message);

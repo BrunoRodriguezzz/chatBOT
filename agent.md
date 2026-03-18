@@ -40,10 +40,17 @@ El proyecto sigue una estructura modular basada en eventos y repositorios:
 
 ## 🗺 Hoja de Ruta (Todolist)
 
-- [ ] Implementar lectura de Word (`.docx`) usando `mammoth`.
-- [ ] Refinar el sistema de puntaje y respuestas extra (contexto de secciones).
-- [ ] Integrar completamente la persistencia con MongoDB.
-- [ ] Mejorar la interacción con componentes de Discord (botones para "ver más").
+- [x] Modificar funcionamiento -> Vectorizar solo los titulos y comparar con eso
+- [x] Modificar el funcionamiento. Para cada titulo conocer en que linea arrancar y con eso poder leer el .md en el momento.
+- [x] Sanetizar los titulos con titulos con stopwords en español.
+- [x] Mejorar jerarquia, de cada titulo conocer:
+  - Titulos anteriores. Ejemplo: Titulo 1 > Titulo 2 > Titulo 3
+  - Subtitulos del titulo. Ejemplo: Titulo: Componentes Arquitectonicos, Subtitulos: Broker, Cola de mensajes, CDN.
+- [ ] Sugerir preguntas hechas en el foro del mismo estilo. Dos opciones:
+  - Guardar las preguntas realizadas en una BD. (Implica mantenerlo, es decir que cuando se cree/elimine tenemos que saberlo).
+  - Cada vez que se haga una consulta deberiamos pedir a Discord que nos de TODAS la preguntas del foro.
+- [ ] Mejorar la interacción con componentes de Discord.
+  - [ ] PErmitir obtener información de cada subtitulo.
 
 ---
 *Este archivo sirve como guía para agentes de IA y desarrolladores sobre la intención y estructura del proyecto.*

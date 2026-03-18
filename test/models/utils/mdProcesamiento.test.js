@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
-import { procesarMarkdown } from "../../../../models/utils/mdProcesamiento.js";
-import { chunkRepository } from "../../../../models/repositories/chunkRepository.js";
+import { procesarMarkdown, leerSeccionMarkdown } from "../../../../models/utils/mdProcesamiento.js";
 import { jerarquiaRepository } from "../../../../models/repositories/jerarquiaRepository.js";
 import { Jerarquia } from "../../../models/entities/Jerarquia.js";
 
@@ -23,11 +22,10 @@ Aquí explicamos cómo inicializar el sistema.
 ### Base de Datos
 
 Las credenciales están en el archivo .env.
-No compartas este archivo.`,
+No compartas este archivo.`
     ),
   },
 }));
-
 
 const mdFile = path.join(process.cwd(), "documentos", "proyecto-alpha.mock.md");
 
@@ -42,93 +40,79 @@ function generateId(text) {
 describe("mdProcesamiento", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    chunkRepository.clear();
     jerarquiaRepository.clear();
   });
 
-  it("procesarMarkdown guarda los chunks y la jerarquía esperada", async () => {
+  it("procesarMarkdown guarda la jerarquía esperada con subtítulos y líneas", async () => {
     const result = await procesarMarkdown(mdFile);
     expect(result).toBe(true);
     expect(fs.readFile).toHaveBeenCalledWith(mdFile, "utf-8");
 
-    const chunks = chunkRepository.getAll();
-    const jerarquia = jerarquiaRepository.getAll();
+    const jerarquias = jerarquiaRepository.getAll();
 
+    const generalId = generateId("General-Inicio");
     const introParentId = generateId("Proyecto Alpha");
     const configParentId = generateId("Proyecto Alpha-Configuración");
     const databaseParentId = generateId(
-      "Proyecto Alpha-Configuración-Base de Datos",
+      "Proyecto Alpha-Configuración-Base de Datos"
     );
 
-    const expectedChunks = [
-      {
-        id: generateId(
-          `${introParentId}-Este es el párrafo introductorio del proyecto. Tiene dos líneas, pero el código las unirá.-0`,
-        ),
-        idJerarquia: introParentId,
-        texto:
-          "Este es el párrafo introductorio del proyecto. Tiene dos líneas, pero el código las unirá.",
-      },
-      {
-        id: generateId(
-          `${configParentId}-Aquí explicamos cómo inicializar el sistema.-1`,
-        ),
-        idJerarquia: configParentId,
-        texto: "Aquí explicamos cómo inicializar el sistema.",
-      },
-      {
-        id: generateId(
-          `${databaseParentId}-Las credenciales están en el archivo .env. No compartas este archivo.-2`,
-        ),
-        idJerarquia: databaseParentId,
-        texto:
-          "Las credenciales están en el archivo .env. No compartas este archivo.",
-      },
-    ];
-
     const expectedJerarquia = {
+      [generalId]: {
+        id: generalId,
+        ruta_titulos: ["General", "Inicio"],
+        subtitulos: ["Proyecto Alpha"],
+        linea_md: 1,
+        archivo_md: mdFile,
+      },
       [introParentId]: {
-        id: Jerarquia.generarId(["Proyecto Alpha"]),
+        id: introParentId,
         ruta_titulos: ["Proyecto Alpha"],
-        ids_chunks_hijos: [expectedChunks[0].id],
+        subtitulos: ["Configuración"],
+        linea_md: 1,
+        archivo_md: mdFile,
       },
       [configParentId]: {
-        id: Jerarquia.generarId(["Proyecto Alpha", "Configuración"]),
+        id: configParentId,
         ruta_titulos: ["Proyecto Alpha", "Configuración"],
-        ids_chunks_hijos: [expectedChunks[1].id],
+        subtitulos: ["Base de Datos"],
+        linea_md: 6,
+        archivo_md: mdFile,
       },
       [databaseParentId]: {
-        id: Jerarquia.generarId(["Proyecto Alpha", "Configuración", "Base de Datos"]),
+        id: databaseParentId,
         ruta_titulos: ["Proyecto Alpha", "Configuración", "Base de Datos"],
-        ids_chunks_hijos: [expectedChunks[2].id],
+        subtitulos: [],
+        linea_md: 10,
+        archivo_md: mdFile,
       },
     };
 
-    expect(Array.isArray(chunks)).toBe(true);
-    expect(chunks).toEqual(expectedChunks);
-    expect(jerarquia).toEqual(expectedJerarquia);
-
-    console.log("Chunks guardados:", JSON.stringify(chunks, null, 2));
-    console.log("Jerarquia guardada:", JSON.stringify(jerarquia, null, 2));
+    expect(jerarquias).toEqual(expectedJerarquia);
   });
 
-  it("findMostSimilar devuelve el chunk esperado para la consulta mockeada", async () => {
+  it("findMostSimilar devuelve la jerarquía esperada para la consulta mockeada", async () => {
     await procesarMarkdown(mdFile);
-    await chunkRepository.train();
+    await jerarquiaRepository.train();
 
-    const best = await chunkRepository.findMostSimilar("credenciales", 0);
+    const best = await jerarquiaRepository.findMostSimilar("base datos config", 0);
 
     expect(best).not.toBeNull();
     if (best) {
       expect(best).toHaveProperty("score");
-      expect(best).toHaveProperty("chunk");
+      expect(best).toHaveProperty("jerarquia");
       expect(best.score).toBeGreaterThan(0);
-      expect(best.chunk.idJerarquia).toBe(
-        generateId("Proyecto Alpha-Configuración-Base de Datos"),
-      );
-      expect(best.chunk.texto).toBe(
-        "Las credenciales están en el archivo .env. No compartas este archivo.",
+      expect(best.jerarquia.id).toBe(
+        generateId("Proyecto Alpha-Configuración-Base de Datos")
       );
     }
   });
+
+  it("leerSeccionMarkdown lee la sección correcta", async () => {
+    // startLine es 10 para 'Base de Datos'
+    const texto = await leerSeccionMarkdown(mdFile, 10);
+    expect(texto).toContain("Las credenciales están en el archivo .env.");
+    expect(texto).not.toContain("Aquí explicamos cómo inicializar el sistema.");
+  });
 });
+

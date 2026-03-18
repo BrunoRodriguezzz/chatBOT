@@ -1,54 +1,68 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
-import { chunkRepository } from "../repositories/chunkRepository.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+} from "discord.js";
 import { jerarquiaRepository } from "../repositories/jerarquiaRepository.js";
+import { leerSeccionMarkdown } from "./mdProcesamiento.js";
 
 /**
- * Genera un objeto de respuesta para un chunk específico, incluyendo navegación.
- * @param {string} chunkId - ID del chunk a mostrar.
+ * Genera un objeto de respuesta para una jerarquía específica leyendo el Markdown en tiempo real.
+ * @param {string} jerarquiaId - ID de la jerarquía a mostrar.
  * @param {string} prefix - Texto opcional para poner antes del contenido.
- * @returns {object} - Objeto listo para ser usado en message.reply() o interaction.update().
+ * @returns {Promise<object>} - Objeto listo para ser usado en message.reply() o interaction.update().
  */
-export function generarRespuestaChunk(chunkId, prefix = "¡Hola! He encontrado un tema relacionado:") {
-  const chunk = chunkRepository.getById(chunkId);
-  if (!chunk) return { content: "No se encontró el contenido solicitado." };
+export async function generarRespuestaJerarquia(
+  jerarquiaId,
+  prefix = "¡Hola! He encontrado la siguiente sección en la documentación:",
+) {
+  const jerarquia = jerarquiaRepository.getById(jerarquiaId);
+  if (!jerarquia) return { content: "No se encontró el contenido solicitado." };
 
-  const jerarquia = jerarquiaRepository.getById(chunk.idJerarquia);
-  const titulo = jerarquia ? jerarquia.ruta_titulos.join(" > ") : "Sin categoría";
+  const titulo = jerarquia.ruta_titulos.join(" > ");
+  let texto = "(sin contenido)";
 
-  const texto = chunk.texto || "(sin contenido)";
-  
-  const embed = new EmbedBuilder()
-    .setTitle(titulo)
-    .setDescription(texto)
-    .setColor(0x0099FF);
-
-  const prev = chunkRepository.getPrevious(chunkId);
-  const next = chunkRepository.getNext(chunkId);
-
-  const row = new ActionRowBuilder();
-
-  if (prev) {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`chunk_view_${prev.id}`)
-        .setLabel("⬅️ Anterior")
-        .setStyle(ButtonStyle.Secondary)
-    );
+  if (jerarquia.archivo_md && jerarquia.linea_md > 0) {
+    texto = await leerSeccionMarkdown(jerarquia.archivo_md, jerarquia.linea_md);
+    // Si la sección empieza con un encabezado Markdown (ej. "### Título"), lo removemos
+    // para evitar que el título aparezca duplicado (embed title + descripción).
+    texto = texto.replace(/^\s*#{1,6}\s+.*(?:\r?\n)?/, "").trim();
   }
 
-  if (next) {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`chunk_view_${next.id}`)
-        .setLabel("Siguiente ➡️")
-        .setStyle(ButtonStyle.Secondary)
-    );
+  // Si el texto excede los límites de Discord (4096 para descripción de Embed), lo cortamos.
+  if (texto.length > 4000) {
+    texto = texto.substring(0, 4000) + "... *(el texto ha sido recortado)*";
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(
+      jerarquia.ruta_titulos[jerarquia.ruta_titulos.length - 1] || "Sin título",
+    )
+    .setAuthor({ name: titulo })
+    .setDescription(texto)
+    .setColor(0x0099ff);
+
+  // Muestra subtítulos disponibles (si los hay)
+  if (jerarquia.subtitulos && jerarquia.subtitulos.length > 0) {
+    const sub = jerarquia.subtitulos.join(", ");
+    const limitSub = sub.length > 1000 ? sub.substring(0, 1000) + "..." : sub;
+    embed.addFields({ name: "Subtemas disponibles", value: limitSub });
   }
 
   const response = {
     content: prefix,
     embeds: [embed],
   };
+
+  // FUTURO: Se podría agregar componentes con los IDs de los subtítulos si los mapeamos, para navegar hacia ellos.
+  const row = new ActionRowBuilder();
+
+  /* Ejemplo de cómo podríamos paginar o navegar en el futuro
+  if (jerarquia.subtitulos.length > 0) {
+      // Logic for buttons
+  }
+  */
 
   if (row.components.length > 0) {
     response.components = [row];

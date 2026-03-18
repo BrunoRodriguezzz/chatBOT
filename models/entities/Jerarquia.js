@@ -1,12 +1,15 @@
 import crypto from "crypto";
 
 export class Jerarquia {
-  constructor({ id, ruta_titulos, ids_chunks_hijos = [] }) {
+  constructor({ id, ruta_titulos, subtitulos = [], linea_md = 0, archivo_md = "" }) {
     this.id = id;
     this.ruta_titulos = [...ruta_titulos];
-    this.ids_chunks_hijos = [...ids_chunks_hijos];
+    this.subtitulos = [...subtitulos];
+    this.linea_md = linea_md;
+    this.archivo_md = archivo_md;
   }
 
+  // Utiliza la cadena de títulos para generar un ID único y consistente.
   static generarId(ruta_titulos) {
     return crypto
       .createHash("sha256")
@@ -15,23 +18,30 @@ export class Jerarquia {
       .substring(0, 16);
   }
 
-  static create(ruta_titulos) {
+  static create(ruta_titulos, linea_md = 0, archivo_md = "") {
     const id = Jerarquia.generarId(ruta_titulos);
-    return new Jerarquia({ id, ruta_titulos });
+    return new Jerarquia({ id, ruta_titulos, linea_md, archivo_md, subtitulos: [] });
   }
 
-  agregarHijo(chunkId) {
-    if (!this.ids_chunks_hijos.includes(chunkId)) {
-      this.ids_chunks_hijos.push(chunkId);
+  agregarSubtitulo(subtitulo) {
+    if (!this.subtitulos.includes(subtitulo)) {
+      this.subtitulos.push(subtitulo);
     }
   }
 
   merge(other) {
-    const uniqueHijos = new Set([
-      ...this.ids_chunks_hijos,
-      ...other.ids_chunks_hijos,
+    // Si la ruta o el archivo coincide, se actualizan las propiedades.
+    // Generalmente para el merge de subtítulos
+    const uniqueSubtitulos = new Set([
+      ...this.subtitulos,
+      ...other.subtitulos,
     ]);
-    this.ids_chunks_hijos = Array.from(uniqueHijos);
-    this.ruta_titulos = [...other.ruta_titulos];
+    this.subtitulos = Array.from(uniqueSubtitulos);
+    
+    // Mantenemos la linea_md si está o si la 'other' es mejor.
+    if (!this.linea_md && other.linea_md) {
+      this.linea_md = other.linea_md;
+      this.archivo_md = other.archivo_md;
+    }
   }
 }
