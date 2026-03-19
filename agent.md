@@ -49,8 +49,8 @@ El proyecto sigue una estructura modular basada en eventos y repositorios:
 - [ ] Sugerir preguntas hechas en el foro del mismo estilo. Dos opciones:
   - Guardar las preguntas realizadas en una BD. (Implica mantenerlo, es decir que cuando se cree/elimine tenemos que saberlo).
   - Cada vez que se haga una consulta deberiamos pedir a Discord que nos de TODAS la preguntas del foro.
-- [ ] Mejorar la interacción con componentes de Discord.
-  - [ ] PErmitir obtener información de cada subtitulo.
+- [x] Mejorar la interacción con componentes de Discord.
+  - [x] Permitir obtener información de cada subtitulo.
 
 ---
 *Este archivo sirve como guía para agentes de IA y desarrolladores sobre la intención y estructura del proyecto.*

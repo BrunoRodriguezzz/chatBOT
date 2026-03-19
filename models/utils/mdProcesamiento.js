@@ -124,11 +124,8 @@ export async function leerSeccionMarkdown(filePath, startLine) {
        const match = line.trim().match(headingRegex);
        
        if (match) {
-           const compareLevel = match[1].length;
-           // Si encontramos un título de igual o MAYOR jerarquía (menor número de #), paramos.
-           if (compareLevel <= myLevel) {
-               break;
-           }
+           // Detenemos la lectura al encontrar CUALQUIER otro título
+           break;
        }
        sectionLines.push(line);
     }

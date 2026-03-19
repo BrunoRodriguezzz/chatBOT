@@ -3,7 +3,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
+  StringSelectMenuBuilder,
 } from "discord.js";
+import { Jerarquia } from "../entities/Jerarquia.js";
 import { jerarquiaRepository } from "../repositories/jerarquiaRepository.js";
 import { leerSeccionMarkdown } from "./mdProcesamiento.js";
 
@@ -30,6 +32,13 @@ export async function generarRespuestaJerarquia(
     texto = texto.replace(/^\s*#{1,6}\s+.*(?:\r?\n)?/, "").trim();
   }
 
+  // Manejo de secciones sin contenido directo pero con subtemas
+  if (!texto && jerarquia.subtitulos && jerarquia.subtitulos.length > 0) {
+    texto = "*Esta sección no contiene información directa, pero puedes explorar sus subtemas a continuación:*";
+  } else if (!texto) {
+    texto = "*(Sin contenido disponible)*";
+  }
+
   // Si el texto excede los límites de Discord (4096 para descripción de Embed), lo cortamos.
   if (texto.length > 4000) {
     texto = texto.substring(0, 4000) + "... *(el texto ha sido recortado)*";
@@ -43,29 +52,57 @@ export async function generarRespuestaJerarquia(
     .setDescription(texto)
     .setColor(0x0099ff);
 
-  // Muestra subtítulos disponibles (si los hay)
-  if (jerarquia.subtitulos && jerarquia.subtitulos.length > 0) {
-    const sub = jerarquia.subtitulos.join(", ");
-    const limitSub = sub.length > 1000 ? sub.substring(0, 1000) + "..." : sub;
-    embed.addFields({ name: "Subtemas disponibles", value: limitSub });
-  }
-
   const response = {
     content: prefix,
     embeds: [embed],
+    components: [],
   };
 
-  // FUTURO: Se podría agregar componentes con los IDs de los subtítulos si los mapeamos, para navegar hacia ellos.
-  const row = new ActionRowBuilder();
-
-  /* Ejemplo de cómo podríamos paginar o navegar en el futuro
-  if (jerarquia.subtitulos.length > 0) {
-      // Logic for buttons
+  // Botón para volver al padre si existe
+  if (jerarquia.ruta_titulos.length > 1) {
+    const parentPath = jerarquia.ruta_titulos.slice(0, -1);
+    const parentId = Jerarquia.generarId(parentPath);
+    
+    // Verificamos si el padre existe en el repositorio (por si acaso)
+    if (jerarquiaRepository.getById(parentId)) {
+      const backRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`hier_view_${parentId}`)
+          .setLabel("Volver")
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji("⬅️"),
+      );
+      response.components.push(backRow);
+    }
   }
-  */
 
-  if (row.components.length > 0) {
-    response.components = [row];
+  // Muestra subtítulos disponibles en un menú de selección
+  if (jerarquia.subtitulos && jerarquia.subtitulos.length > 0) {
+    const subOptions = jerarquia.subtitulos.map((sub) => {
+      const subPath = [...jerarquia.ruta_titulos, sub];
+      const subId = Jerarquia.generarId(subPath);
+      
+      return {
+        label: sub.length > 100 ? sub.substring(0, 97) + "..." : sub,
+        description: `Ver contenido de ${sub}`,
+        value: subId,
+      };
+    });
+
+    // Discord permite hasta 25 opciones por menú.
+    const menuRow = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("hier_subs_select")
+        .setPlaceholder("Selecciona un subtema para navegar...")
+        .addOptions(subOptions.slice(0, 25)),
+    );
+    
+    response.components.push(menuRow);
+
+    // También lo dejamos en el embed para visibilidad
+    const sub = jerarquia.subtitulos.join(", ");
+    const limitSub = sub.length > 1000 ? sub.substring(0, 1000) + "..." : sub;
+    embed.addFields({ name: "Subtemas disponibles", value: limitSub });
   }
 
   return response;
